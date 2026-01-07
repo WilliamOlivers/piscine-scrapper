@@ -2,7 +2,7 @@ name: Piscine Scraper
 
 on:
   schedule:
-    - cron: '*/15 * * * *'  # Tourne toutes les 15 minutes
+    - cron: '*/5 * * * *'  # Tourne toutes les 5 minutes
   workflow_dispatch:        # Permet aussi de le lancer manuellement (bouton)
 
 jobs:
