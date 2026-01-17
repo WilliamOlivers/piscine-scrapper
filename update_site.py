@@ -2,9 +2,9 @@ import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 
-# --- CONFIGURATION ---
+# --- CONFIGURATION DES HORAIRES ---
 HORAIRES = {
-    "Monday":    [], # Fermé
+    "Monday":    [], 
     "Tuesday":   [("11:45", "14:00"), ("16:30", "19:00")],
     "Wednesday": [("10:00", "13:45"), ("15:00", "19:00")],
     "Thursday":  [("07:00", "08:30"), ("11:45", "14:00"), ("16:30", "21:30")],
@@ -14,7 +14,7 @@ HORAIRES = {
 }
 
 DAY_MAP = {'Monday':0, 'Tuesday':1, 'Wednesday':2, 'Thursday':3, 'Friday':4, 'Saturday':5, 'Sunday':6}
-FR_DAYS = {"Monday":"Lundi", "Tuesday":"Mardi", "Wednesday":"Mercredi", "Thursday":"Jeudi", "Friday":"Vendredi", "Saturday":"Samedi", "Sunday":"Dimanche"}
+FR_DAYS = {"Monday":"lundi", "Tuesday":"mardi", "Wednesday":"mercredi", "Thursday":"jeudi", "Friday":"vendredi", "Saturday":"samedi", "Sunday":"dimanche"}
 DAYS_LIST = list(DAY_MAP.keys())
 
 def is_open(day_str, hour_int):
@@ -25,7 +25,8 @@ def is_open(day_str, hour_int):
             return True
     return False
 
-# --- 1. CHARGEMENT & ENTRAINEMENT ---
+best_time_str = "..."
+
 try:
     df = pd.read_csv('historique_piscine.csv')
     df['date'] = pd.to_datetime(df['date'])
@@ -36,9 +37,9 @@ try:
     model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(df[['day_code', 'hour']], df['frequentation'])
 
-    # --- 2. PREDICTION ---
-    best_time = None
     min_freq = float('inf')
+    best_day = None
+    best_hour = None
 
     for day in DAYS_LIST:
         d_code = DAY_MAP[day]
@@ -47,22 +48,27 @@ try:
                 pred = model.predict([[d_code, h]])[0]
                 if pred < min_freq:
                     min_freq = pred
-                    best_time = f"{FR_DAYS[day]} à {h}h"
+                    best_day = day
+                    best_hour = h
     
-    if not best_time:
-        best_time = "Aucun créneau disponible"
+    if best_day:
+        best_time_str = f"{FR_DAYS[best_day]} {best_hour}h"
+    else:
+        best_time_str = "aucun créneau"
 
-except Exception as e:
-    best_time = "Données insuffisantes"
-    print(f"Error: {e}")
+except Exception:
+    best_time_str = "données indisponibles"
 
-# --- 3. GENERATION DU SITE (DESIGN TEXTURE) ---
 html_content = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Piscine Ouest</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+    
     <style>
         body, html {{
             height: 100%;
@@ -70,48 +76,36 @@ html_content = f"""<!DOCTYPE html>
             display: flex;
             justify-content: center;
             align-items: center;
-            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            background-color: #231f1c; /* Marron très sombre/Noir */
-            color: #f0f0f0;
-            overflow: hidden;
-        }}
-        
-        /* Effet de grain */
-        .bg-grain {{
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            opacity: 0.15;
-            pointer-events: none;
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-            z-index: 1;
+            background-color: #0f0f10; /* Dark Gray Night */
+            color: #b0b0b0; /* Gris clair doux */
+            font-family: 'Space Mono', monospace; /* La police style Grok */
+            font-size: 14px; /* Petit texte */
+            letter-spacing: -0.5px;
         }}
 
-        .content {{
-            z-index: 2;
+        .container {{
             text-align: center;
+            max-width: 600px;
             padding: 20px;
-            font-size: 2rem;
-            font-weight: 300;
-            letter-spacing: 1px;
-            max-width: 800px;
-            line-height: 1.4;
         }}
 
-        @media (max-width: 600px) {{
-            .content {{ font-size: 1.5rem; }}
+        .text {{
+            font-weight: 400;
+        }}
+
+        .prediction {{
+            font-style: italic;
+            color: #ffffff;
         }}
     </style>
 </head>
 <body>
-    <div class="bg-grain"></div>
-    <div class="content">
-        Le meilleur moment pour aller à la piscine cette semaine est :<br>
-        <strong>{best_time}</strong>
+    <div class="container">
+        <span class="text">le meilleur moment pour aller à la piscine cette semaine est : </span>
+        <span class="prediction">{best_time_str}</span>
     </div>
 </body>
 </html>"""
 
 with open('index.html', 'w', encoding='utf-8') as f:
     f.write(html_content)
-
-print("Site updated successfully.")
