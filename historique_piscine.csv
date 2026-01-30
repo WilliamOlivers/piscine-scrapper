@@ -2090,3 +2090,5 @@ date,jour,heure,zone,frequentation,capacite,taux
 2026-01-30 14:23:50,Friday,14,Ouest,0,500,0.0
 2026-01-30 15:02:58,Friday,15,Ouest,-18,500,-3.6
 2026-01-30 15:02:58,Friday,15,Est,6,500,1.2
+2026-01-30 15:50:03,Friday,15,Ouest,21,500,4.2
+2026-01-30 15:50:03,Friday,15,Est,6,500,1.2
