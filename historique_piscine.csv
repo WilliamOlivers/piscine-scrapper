@@ -2582,3 +2582,5 @@ date,jour,heure,zone,frequentation,capacite,taux
 2026-02-07 16:42:30,Saturday,16,Ouest,74,500,14.8
 2026-02-07 17:04:25,Saturday,17,Ouest,10,500,2.0
 2026-02-07 17:04:25,Saturday,17,Est,0,500,0.0
+2026-02-07 17:39:55,Saturday,17,Ouest,-7,500,-1.4
+2026-02-07 17:39:55,Saturday,17,Est,0,500,0.0
