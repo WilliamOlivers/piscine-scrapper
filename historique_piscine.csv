@@ -3706,3 +3706,5 @@ date,jour,heure,zone,frequentation,capacite,taux
 2026-02-27 22:35:03,Friday,22,Ouest,16,500,3.2
 2026-02-27 22:56:39,Friday,22,Ouest,16,500,3.2
 2026-02-27 22:56:39,Friday,22,Est,0,500,0.0
+2026-02-27 23:32:30,Friday,23,Est,0,500,0.0
+2026-02-27 23:32:30,Friday,23,Ouest,0,500,0.0
