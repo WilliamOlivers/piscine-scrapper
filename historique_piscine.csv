@@ -4518,3 +4518,5 @@ date,jour,heure,zone,frequentation,capacite,taux
 2026-03-13 10:31:40,Friday,10,Ouest,30,500,6.0
 2026-03-13 11:07:17,Friday,11,Ouest,109,500,21.8
 2026-03-13 11:07:17,Friday,11,Est,0,500,0.0
+2026-03-13 11:45:48,Friday,11,Est,0,500,0.0
+2026-03-13 11:45:48,Friday,11,Ouest,156,500,31.2
