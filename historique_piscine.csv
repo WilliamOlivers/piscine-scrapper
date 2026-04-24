@@ -6490,3 +6490,5 @@ date,jour,heure,zone,frequentation,capacite,taux
 2026-04-24 19:31:58,Friday,19,Est,0,500,0.0
 2026-04-24 20:25:44,Friday,20,Est,0,500,0.0
 2026-04-24 20:25:44,Friday,20,Ouest,49,500,9.8
+2026-04-24 21:25:55,Friday,21,Ouest,49,500,9.8
+2026-04-24 21:25:55,Friday,21,Est,0,500,0.0
