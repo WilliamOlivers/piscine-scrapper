@@ -180,7 +180,7 @@ html_content = f"""<!DOCTYPE html>
             text-transform: uppercase;
             letter-spacing: 2px;
             color: #b0b0b0;
-            margin-bottom: 14px;
+            margin-bottom: 40px;
         }}
 
         .label-text {{ margin-bottom: 20px; font-weight: 400; }}
@@ -222,7 +222,7 @@ html_content = f"""<!DOCTYPE html>
 
         /* --- GRAPHE --- */
         .chart-panel {{
-            margin-top: 28px;
+            margin-top: 48px;
             width: 100%;
             display: flex;
             flex-direction: column;
@@ -434,6 +434,29 @@ html_content = f"""<!DOCTYPE html>
                 }}
             }});
         }});
+
+        // Scroll global → redirigé vers la roue (sauf méthodologie ouverte)
+        const methPanel = document.getElementById('methPanel');
+
+        let touchStartY = 0;
+        document.addEventListener('touchstart', (e) => {{
+            if (methPanel.style.display === 'block') return;
+            touchStartY = e.touches[0].clientY;
+        }}, {{ passive: true }});
+
+        document.addEventListener('touchmove', (e) => {{
+            if (methPanel.style.display === 'block') return;
+            const delta = touchStartY - e.touches[0].clientY;
+            touchStartY = e.touches[0].clientY;
+            wheelEl.scrollTop += delta;
+            e.preventDefault();
+        }}, {{ passive: false }});
+
+        document.addEventListener('wheel', (e) => {{
+            if (methPanel.style.display === 'block') return;
+            wheelEl.scrollTop += e.deltaY;
+            e.preventDefault();
+        }}, {{ passive: false }});
 
         // Clic sur un item pour le centrer
         items.forEach(item => {{
