@@ -175,6 +175,14 @@ html_content = f"""<!DOCTYPE html>
             position: relative;
         }}
 
+        .pool-title {{
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #2e2e2e;
+            margin-bottom: 14px;
+        }}
+
         .label-text {{ margin-bottom: 20px; font-weight: 400; }}
 
         .wheel-container {{
@@ -262,19 +270,20 @@ html_content = f"""<!DOCTYPE html>
 
         /* --- STATUT --- */
         .status {{
+            position: fixed;
+            bottom: 14px;
+            right: 16px;
             display: flex;
             align-items: center;
-            justify-content: center;
-            gap: 8px;
-            font-size: 10px;
-            color: #555;
-            margin-top: 24px;
+            gap: 6px;
+            font-size: 8px;
+            color: #2a2a2a;
         }}
         .dot {{
-            width: 6px; height: 6px;
+            width: 4px; height: 4px;
             background-color: #2ecc71;
             border-radius: 50%;
-            box-shadow: 0 0 4px #2ecc71;
+            box-shadow: 0 0 3px #2ecc71;
             animation: blink 2s infinite ease-in-out;
         }}
         @keyframes blink {{
@@ -326,6 +335,7 @@ html_content = f"""<!DOCTYPE html>
 <body>
 
     <div class="container">
+        <div class="pool-title">piscine judaïque · bordeaux</div>
         <div class="label-text">le meilleur moment pour nager est :</div>
 
         <div class="wheel-container" id="wheel">
@@ -339,10 +349,11 @@ html_content = f"""<!DOCTYPE html>
             <div class="chart-stat" id="chartStat"></div>
         </div>
 
-        <div class="status">
-            <div class="dot"></div>
-            <span>mis à jour à {update_time}</span>
-        </div>
+    </div>
+
+    <div class="status">
+        <div class="dot"></div>
+        <span>màj {update_time}</span>
     </div>
 
     <div class="details-trigger" onclick="toggleDetails()">
@@ -397,8 +408,13 @@ html_content = f"""<!DOCTYPE html>
                 </div>`;
             }}).join('');
 
-            const medLabel = data.median === 0 ? 'quasi vide' : `~${{data.median}} nageurs`;
-            chartStat.innerHTML = `<span>${{medLabel}}</span> · ${{data.n_obs}} mesures`;
+            let medLabel;
+            if (data.median === 0) {{
+                medLabel = 'généralement vide';
+            }} else {{
+                medLabel = `le plus souvent ~${{data.median}} nageurs`;
+            }}
+            chartStat.innerHTML = `<span>${{medLabel}}</span> · ${{data.n_obs}} visites observées`;
 
             chartPanel.classList.add('visible');
         }}
@@ -414,6 +430,14 @@ html_content = f"""<!DOCTYPE html>
                 }} else {{
                     item.classList.remove('active');
                 }}
+            }});
+        }});
+
+        // Clic sur un item pour le centrer
+        items.forEach(item => {{
+            item.addEventListener('click', () => {{
+                const target = item.offsetTop - (wheelEl.clientHeight / 2) + (item.clientHeight / 2);
+                wheelEl.scrollTo({{ top: target, behavior: 'smooth' }});
             }});
         }});
 
