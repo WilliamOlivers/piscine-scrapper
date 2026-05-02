@@ -438,10 +438,25 @@ html_content = f"""<!DOCTYPE html>
         // Scroll global → redirigé vers la roue (sauf méthodologie ouverte)
         const methPanel = document.getElementById('methPanel');
 
+        function snapToNearest() {{
+            const center = wheelEl.scrollTop + wheelEl.clientHeight / 2;
+            let nearest = null, minDist = Infinity;
+            items.forEach(item => {{
+                const dist = Math.abs((item.offsetTop + item.clientHeight / 2) - center);
+                if (dist < minDist) {{ minDist = dist; nearest = item; }}
+            }});
+            if (nearest) {{
+                const target = nearest.offsetTop - wheelEl.clientHeight / 2 + nearest.clientHeight / 2;
+                wheelEl.scrollTo({{ top: target, behavior: 'smooth' }});
+            }}
+            setTimeout(() => {{ wheelEl.style.scrollSnapType = 'y mandatory'; }}, 400);
+        }}
+
         let touchStartY = 0;
         document.addEventListener('touchstart', (e) => {{
             if (methPanel.style.display === 'block') return;
             touchStartY = e.touches[0].clientY;
+            wheelEl.style.scrollSnapType = 'none';
         }}, {{ passive: true }});
 
         document.addEventListener('touchmove', (e) => {{
@@ -451,6 +466,11 @@ html_content = f"""<!DOCTYPE html>
             wheelEl.scrollTop += delta;
             e.preventDefault();
         }}, {{ passive: false }});
+
+        document.addEventListener('touchend', () => {{
+            if (methPanel.style.display === 'block') return;
+            snapToNearest();
+        }});
 
         document.addEventListener('wheel', (e) => {{
             if (methPanel.style.display === 'block') return;
