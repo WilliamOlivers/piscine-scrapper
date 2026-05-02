@@ -49,8 +49,10 @@
         .wheel-container {
             height: 150px;
             width: 100%;
+            overflow-x: hidden;
             overflow-y: scroll;
             scroll-snap-type: y mandatory;
+            touch-action: pan-y;
             position: relative;
             scrollbar-width: none;
             -ms-overflow-style: none;
@@ -214,7 +216,7 @@
 
     <div class="status">
         <div class="dot"></div>
-        <span>màj 02/05/2026 à 08:50</span>
+        <span>màj 02/05/2026 à 08:56</span>
     </div>
 
     <div class="details-trigger" onclick="toggleDetails()">

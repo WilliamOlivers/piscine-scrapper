@@ -188,8 +188,10 @@ html_content = f"""<!DOCTYPE html>
         .wheel-container {{
             height: 150px;
             width: 100%;
+            overflow-x: hidden;
             overflow-y: scroll;
             scroll-snap-type: y mandatory;
+            touch-action: pan-y;
             position: relative;
             scrollbar-width: none;
             -ms-overflow-style: none;
