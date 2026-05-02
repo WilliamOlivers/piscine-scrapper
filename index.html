@@ -7,29 +7,28 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
-    
+
     <style>
         body, html {
             height: 100%;
             margin: 0;
             background-color: #0f0f10;
-            color: #b0b0b0; 
+            color: #b0b0b0;
             font-family: 'Space Mono', monospace;
             font-size: 14px;
             letter-spacing: -0.5px;
-            overflow: hidden; /* Empêche le scroll global */
+            overflow: hidden;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
         }
 
-        /* --- CONTENEUR PRINCIPAL --- */
         .container {
             text-align: center;
             width: 100%;
             max-width: 400px;
-            height: 80vh; /* Prend la majorité de l'écran */
+            height: 80vh;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -39,23 +38,21 @@
 
         .label-text { margin-bottom: 20px; font-weight: 400; }
 
-        /* --- ROUE DE SELECTION (IOS STYLE) --- */
         .wheel-container {
-            height: 150px; /* Hauteur visible de la roue */
+            height: 150px;
             width: 100%;
             overflow-y: scroll;
-            scroll-snap-type: y mandatory; /* Force l'arrêt sur les éléments */
+            scroll-snap-type: y mandatory;
             position: relative;
-            scrollbar-width: none; /* Cache la scrollbar Firefox */
-            -ms-overflow-style: none; /* Cache la scrollbar IE */
+            scrollbar-width: none;
+            -ms-overflow-style: none;
             mask-image: linear-gradient(to bottom, transparent, black 40%, black 60%, transparent);
             -webkit-mask-image: linear-gradient(to bottom, transparent, black 40%, black 60%, transparent);
         }
-        
-        .wheel-container::-webkit-scrollbar { display: none; } /* Cache scrollbar Chrome */
 
-        /* Espace vide pour centrer le premier et dernier élément */
-        .spacer { height: 60px; } 
+        .wheel-container::-webkit-scrollbar { display: none; }
+
+        .spacer { height: 60px; }
 
         .wheel-item {
             height: 30px;
@@ -63,7 +60,7 @@
             text-align: center;
             font-size: 18px;
             color: #555;
-            scroll-snap-align: center; /* L'élément s'arrête au milieu */
+            scroll-snap-align: center;
             transition: all 0.2s ease;
             cursor: pointer;
         }
@@ -76,7 +73,6 @@
             transform: scale(1.1);
         }
 
-        /* --- STATUT (Point vert) --- */
         .status {
             display: flex;
             align-items: center;
@@ -97,7 +93,6 @@
             0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; }
         }
 
-        /* --- PARTIE EXPLICATION (Bas de page) --- */
         .details-trigger {
             position: absolute;
             bottom: 20px;
@@ -109,13 +104,12 @@
             transition: color 0.3s;
         }
         .details-trigger:hover { color: #888; }
-        
+
         .arrow { font-size: 12px; margin-bottom: 5px; animation: bounce 2s infinite; }
         .info-text { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
 
-        /* --- MODALE EXPLICATION --- */
         .methodology {
-            display: none; /* Caché par défaut */
+            display: none;
             position: fixed;
             bottom: 0; left: 0; width: 100%;
             background: #151516;
@@ -148,13 +142,13 @@
 
         <div class="wheel-container" id="wheel">
             <div class="spacer"></div>
-            <div class="wheel-item active">jeudi 13h</div><div class="wheel-item ">vendredi 13h</div><div class="wheel-item ">jeudi 21h</div>
+            <div class="wheel-item active">vendredi 13h</div><div class="wheel-item ">samedi 17h</div><div class="wheel-item ">dimanche 17h</div>
             <div class="spacer"></div>
         </div>
 
         <div class="status">
             <div class="dot"></div>
-            <span>mis à jour à 08:16</span>
+            <span>mis à jour à 02/05/2026 à 08:25</span>
         </div>
     </div>
 
@@ -167,26 +161,24 @@
         <div class="close-btn" onclick="toggleDetails()">✕</div>
         <h3>Logique de prédiction</h3>
         <p>
-            Notre algorithme utilise un modèle de <strong>Forêt Aléatoire (Random Forest)</strong> entraîné sur les données historiques de fréquentation de la piscine (Zone Ouest).<br><br>
-            Il croise l'historique des affluences avec les horaires d'ouverture réels pour exclure les fermetures. 
-            L'hypothèse est que les motifs d'affluence (pics le mercredi après-midi, calme le jeudi soir) se répètent de manière cyclique. 
-            Le modèle prédit le nombre de nageurs pour chaque heure de la semaine à venir et classe les créneaux du moins fréquenté au plus fréquenté.
+            L'algorithme utilise un modèle de <strong>Forêt Aléatoire</strong> entraîné uniquement sur les données collectées pendant les heures d'ouverture réelles.<br><br>
+            Les données aberrantes (valeurs négatives, heures de fermeture) sont exclues de l'entraînement.
+            La règle des <strong>45 minutes</strong> garantit que chaque créneau proposé laisse assez de temps pour une séance complète avant la fermeture.<br><br>
+            Le modèle intègre quatre dimensions : jour de la semaine, heure, temps écoulé depuis l'ouverture du créneau, et mois de l'année (saisonnalité).
+            Le score final combine la médiane empirique observée et la prédiction du modèle, pondérées par le nombre d'observations disponibles pour ce créneau.
         </p>
     </div>
 
     <script>
-        // --- LOGIQUE SCROLL TYPE IOS ---
         const container = document.getElementById('wheel');
         const items = document.querySelectorAll('.wheel-item');
 
         container.addEventListener('scroll', () => {
             const center = container.scrollTop + (container.clientHeight / 2);
-            
+
             items.forEach(item => {
                 const itemCenter = item.offsetTop + (item.clientHeight / 2);
                 const distance = Math.abs(center - itemCenter);
-                
-                // Si l'élément est proche du centre (< 15px), il devient actif
                 if (distance < 15) {
                     item.classList.add('active');
                 } else {
@@ -195,11 +187,9 @@
             });
         });
 
-        // --- LOGIQUE MODALE ---
         function toggleDetails() {
             const panel = document.getElementById('methPanel');
             const trigger = document.querySelector('.details-trigger');
-            
             if (panel.style.display === 'block') {
                 panel.style.display = 'none';
                 trigger.style.display = 'flex';
