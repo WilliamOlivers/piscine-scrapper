@@ -176,10 +176,10 @@ html_content = f"""<!DOCTYPE html>
         }}
 
         .pool-title {{
-            font-size: 9px;
+            font-size: 14px;
             text-transform: uppercase;
             letter-spacing: 2px;
-            color: #2e2e2e;
+            color: #b0b0b0;
             margin-bottom: 14px;
         }}
 
