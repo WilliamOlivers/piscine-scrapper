@@ -148,59 +148,37 @@ html_content = f"""<!DOCTYPE html>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
 
     <style>
+        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+
         body, html {{
             height: 100%;
-            margin: 0;
             background-color: #0f0f10;
             color: #b0b0b0;
             font-family: 'Space Mono', monospace;
             font-size: 14px;
             letter-spacing: -0.5px;
             overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
         }}
 
-        .container {{
-            text-align: center;
-            width: 100%;
-            max-width: 400px;
-            height: 80vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-        }}
-
-        .pool-title {{
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: #b0b0b0;
-            margin-bottom: 40px;
-        }}
-
-        .label-text {{ margin-bottom: 20px; font-weight: 400; }}
-
+        /* Roue plein écran — reçoit les touches nativement */
         .wheel-container {{
-            height: 150px;
-            width: 100%;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
             overflow-x: hidden;
             overflow-y: scroll;
             scroll-snap-type: y mandatory;
             touch-action: pan-y;
-            position: relative;
             scrollbar-width: none;
             -ms-overflow-style: none;
-            mask-image: linear-gradient(to bottom, transparent, black 40%, black 60%, transparent);
-            -webkit-mask-image: linear-gradient(to bottom, transparent, black 40%, black 60%, transparent);
+            mask-image: linear-gradient(to bottom, transparent 0%, black 36%, black 64%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 36%, black 64%, transparent 100%);
+            z-index: 1;
         }}
         .wheel-container::-webkit-scrollbar {{ display: none; }}
 
-        .spacer {{ height: 60px; }}
+        /* Spacer = demi-écran moins demi-item → premier item centré au scroll 0 */
+        .spacer {{ height: calc(50vh - 15px); }}
 
         .wheel-item {{
             height: 30px;
@@ -209,7 +187,7 @@ html_content = f"""<!DOCTYPE html>
             font-size: 18px;
             color: #555;
             scroll-snap-align: center;
-            transition: all 0.2s ease;
+            transition: color 0.2s ease, font-size 0.2s ease, transform 0.2s ease;
             cursor: pointer;
         }}
         .wheel-item.active {{
@@ -220,10 +198,35 @@ html_content = f"""<!DOCTYPE html>
             transform: scale(1.1);
         }}
 
-        /* --- GRAPHE --- */
+        /* Overlay UI — par dessus la roue, ne capture pas les touches */
+        .ui-overlay {{
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            pointer-events: none;
+            z-index: 2;
+        }}
+
+        .pool-title {{
+            margin-top: 10vh;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #b0b0b0;
+        }}
+
+        .label-text {{
+            margin-top: 28px;
+            font-weight: 400;
+        }}
+
+        /* Graphe poussé en bas de l'overlay */
         .chart-panel {{
-            margin-top: 48px;
-            width: 100%;
+            margin-top: auto;
+            margin-bottom: 14vh;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -266,11 +269,9 @@ html_content = f"""<!DOCTYPE html>
             text-transform: uppercase;
             letter-spacing: 1px;
         }}
-        .chart-stat span {{
-            color: #666;
-        }}
+        .chart-stat span {{ color: #666; }}
 
-        /* --- STATUT --- */
+        /* Statut discret */
         .status {{
             position: fixed;
             bottom: 14px;
@@ -280,6 +281,7 @@ html_content = f"""<!DOCTYPE html>
             gap: 6px;
             font-size: 8px;
             color: #2a2a2a;
+            z-index: 3;
         }}
         .dot {{
             width: 4px; height: 4px;
@@ -292,16 +294,20 @@ html_content = f"""<!DOCTYPE html>
             0% {{ opacity: 1; }} 50% {{ opacity: 0.4; }} 100% {{ opacity: 1; }}
         }}
 
-        /* --- MÉTHODOLOGIE --- */
+        /* Méthodologie */
         .details-trigger {{
-            position: absolute;
+            position: fixed;
             bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
             display: flex;
             flex-direction: column;
             align-items: center;
             cursor: pointer;
             color: #444;
             transition: color 0.3s;
+            pointer-events: auto;
+            z-index: 3;
         }}
         .details-trigger:hover {{ color: #888; }}
         .arrow {{ font-size: 12px; margin-bottom: 5px; animation: bounce 2s infinite; }}
@@ -314,7 +320,6 @@ html_content = f"""<!DOCTYPE html>
             background: #151516;
             border-top: 1px solid #333;
             padding: 30px 20px;
-            box-sizing: border-box;
             font-size: 11px;
             line-height: 1.6;
             color: #888;
@@ -328,29 +333,29 @@ html_content = f"""<!DOCTYPE html>
         }}
 
         @keyframes bounce {{
-            0%, 20%, 50%, 80%, 100% {{transform: translateY(0);}}
-            40% {{transform: translateY(-5px);}}
-            60% {{transform: translateY(-3px);}}
+            0%, 20%, 50%, 80%, 100% {{transform: translateX(-50%) translateY(0);}}
+            40% {{transform: translateX(-50%) translateY(-5px);}}
+            60% {{transform: translateX(-50%) translateY(-3px);}}
         }}
     </style>
 </head>
 <body>
 
-    <div class="container">
+    <!-- Roue plein écran : reçoit toutes les touches nativement -->
+    <div class="wheel-container" id="wheel">
+        <div class="spacer"></div>
+        {top_3_html}
+        <div class="spacer"></div>
+    </div>
+
+    <!-- Overlay UI : titre, label, graphe -->
+    <div class="ui-overlay">
         <div class="pool-title">piscine judaïque · bordeaux</div>
         <div class="label-text">le meilleur moment pour nager est :</div>
-
-        <div class="wheel-container" id="wheel">
-            <div class="spacer"></div>
-            {top_3_html}
-            <div class="spacer"></div>
-        </div>
-
         <div class="chart-panel" id="chartPanel">
             <div class="chart-bars" id="chartBars"></div>
             <div class="chart-stat" id="chartStat"></div>
         </div>
-
     </div>
 
     <div class="status">
@@ -389,44 +394,31 @@ html_content = f"""<!DOCTYPE html>
         function renderChart(label) {{
             if (label === activeLabel) return;
             activeLabel = label;
-
             const data = CHART_DATA[label];
-            if (!data || !data.profile.length) {{
-                chartPanel.classList.remove('visible');
-                return;
-            }}
+            if (!data || !data.profile.length) {{ chartPanel.classList.remove('visible'); return; }}
 
             const maxVal = Math.max(...data.profile.map(p => p.med), 1);
-            const BAR_MAX_H = 50;
-
             chartBars.innerHTML = data.profile.map(p => {{
                 const isSelected = p.h === data.selected_hour;
-                const barH = Math.max(2, Math.round((p.med / maxVal) * BAR_MAX_H));
-                const barColor = isSelected ? '#c8c8c8' : '#222';
-                const labelColor = isSelected ? 'active-label' : '';
+                const barH = Math.max(2, Math.round((p.med / maxVal) * 50));
                 return `<div class="bar-wrap">
-                    <div class="bar" style="height:${{barH}}px;background:${{barColor}}"></div>
-                    <div class="bar-hour ${{labelColor}}">${{p.h}}h</div>
+                    <div class="bar" style="height:${{barH}}px;background:${{isSelected ? '#c8c8c8' : '#222'}}"></div>
+                    <div class="bar-hour ${{isSelected ? 'active-label' : ''}}">${{p.h}}h</div>
                 </div>`;
             }}).join('');
 
-            let medLabel;
-            if (data.median === 0) {{
-                medLabel = 'généralement vide';
-            }} else {{
-                medLabel = `le plus souvent ~${{data.median}} nageurs`;
-            }}
-            chartStat.innerHTML = `<span>${{medLabel}}</span> · ${{data.n_obs}} visites observées`;
+            chartStat.innerHTML = data.median === 0
+                ? `<span>généralement vide</span> · ${{data.n_obs}} visites observées`
+                : `<span>le plus souvent ~${{data.median}} nageurs</span> · ${{data.n_obs}} visites observées`;
 
             chartPanel.classList.add('visible');
         }}
 
         wheelEl.addEventListener('scroll', () => {{
-            const center = wheelEl.scrollTop + (wheelEl.clientHeight / 2);
+            const center = wheelEl.scrollTop + wheelEl.clientHeight / 2;
             items.forEach(item => {{
-                const itemCenter = item.offsetTop + (item.clientHeight / 2);
-                const distance = Math.abs(center - itemCenter);
-                if (distance < 15) {{
+                const dist = Math.abs((item.offsetTop + item.clientHeight / 2) - center);
+                if (dist < 15) {{
                     item.classList.add('active');
                     renderChart(item.textContent.trim());
                 }} else {{
@@ -435,58 +427,14 @@ html_content = f"""<!DOCTYPE html>
             }});
         }});
 
-        // Scroll global → redirigé vers la roue (sauf méthodologie ouverte)
-        const methPanel = document.getElementById('methPanel');
-
-        function snapToNearest() {{
-            const center = wheelEl.scrollTop + wheelEl.clientHeight / 2;
-            let nearest = null, minDist = Infinity;
-            items.forEach(item => {{
-                const dist = Math.abs((item.offsetTop + item.clientHeight / 2) - center);
-                if (dist < minDist) {{ minDist = dist; nearest = item; }}
-            }});
-            if (nearest) {{
-                const target = nearest.offsetTop - wheelEl.clientHeight / 2 + nearest.clientHeight / 2;
-                wheelEl.scrollTo({{ top: target, behavior: 'smooth' }});
-            }}
-            setTimeout(() => {{ wheelEl.style.scrollSnapType = 'y mandatory'; }}, 400);
-        }}
-
-        let touchStartY = 0;
-        document.addEventListener('touchstart', (e) => {{
-            if (methPanel.style.display === 'block') return;
-            touchStartY = e.touches[0].clientY;
-            wheelEl.style.scrollSnapType = 'none';
-        }}, {{ passive: true }});
-
-        document.addEventListener('touchmove', (e) => {{
-            if (methPanel.style.display === 'block') return;
-            const delta = touchStartY - e.touches[0].clientY;
-            touchStartY = e.touches[0].clientY;
-            wheelEl.scrollTop += delta;
-            e.preventDefault();
-        }}, {{ passive: false }});
-
-        document.addEventListener('touchend', () => {{
-            if (methPanel.style.display === 'block') return;
-            snapToNearest();
-        }});
-
-        document.addEventListener('wheel', (e) => {{
-            if (methPanel.style.display === 'block') return;
-            wheelEl.scrollTop += e.deltaY;
-            e.preventDefault();
-        }}, {{ passive: false }});
-
         // Clic sur un item pour le centrer
         items.forEach(item => {{
             item.addEventListener('click', () => {{
-                const target = item.offsetTop - (wheelEl.clientHeight / 2) + (item.clientHeight / 2);
+                const target = item.offsetTop - wheelEl.clientHeight / 2 + item.clientHeight / 2;
                 wheelEl.scrollTo({{ top: target, behavior: 'smooth' }});
             }});
         }});
 
-        // Initialisation au chargement
         const firstActive = document.querySelector('.wheel-item.active');
         if (firstActive) renderChart(firstActive.textContent.trim());
 
