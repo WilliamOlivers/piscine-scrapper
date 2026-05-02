@@ -1,3 +1,4 @@
+import json
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
@@ -21,7 +22,7 @@ FR_DAYS = {"Monday": "lundi", "Tuesday": "mardi", "Wednesday": "mercredi",
            "Thursday": "jeudi", "Friday": "vendredi", "Saturday": "samedi",
            "Sunday": "dimanche"}
 DAYS_LIST = list(DAY_MAP.keys())
-SESSION_MIN = 45  # durée minimale d'une séance en minutes
+SESSION_MIN = 45
 
 
 def get_slot_info(day_str, hour_int):
@@ -40,6 +41,7 @@ def get_slot_info(day_str, hour_int):
 # --- 1. CHARGEMENT ET NETTOYAGE DES DONNÉES ---
 top_3_html = ""
 update_time = "..."
+chart_data_json = "{}"
 
 try:
     tz = pytz.timezone('Europe/Paris')
@@ -49,11 +51,8 @@ try:
     df = pd.read_csv('historique_piscine.csv')
     df['date'] = pd.to_datetime(df['date'])
     df = df[df['zone'] == 'Ouest'].copy()
-
-    # Supprimer les valeurs aberrantes (négatifs = bug API source)
     df = df[df['frequentation'] >= 0]
 
-    # Garder uniquement les lignes pendant les heures d'ouverture valides (45min rule)
     df['slot_info'] = df.apply(lambda r: get_slot_info(r['jour'], r['heure']), axis=1)
     df = df[df['slot_info'].notna()].copy()
     df['mins_since_open'] = df['slot_info'].apply(lambda x: x[0])
@@ -63,16 +62,25 @@ try:
 
     # --- 2. ENTRAÎNEMENT DU MODÈLE ---
     features = ['day_code', 'heure', 'mins_since_open', 'mins_before_close', 'month']
-    X = df[features]
-    y = df['frequentation']
-
     model = RandomForestRegressor(n_estimators=200, random_state=42)
-    model.fit(X, y)
+    model.fit(df[features], df['frequentation'])
 
-    # --- 3. PRÉDICTIONS SUR TOUS LES CRÉNEAUX VALIDES ---
-    # On prédit pour le mois courant (saisonnalité)
+    # --- 3. PRÉDICTIONS ET PROFILS PAR JOUR ---
     current_month = now.month
     predictions = []
+
+    # Profil complet par jour (toutes les heures valides, pour le graphe)
+    day_profiles = {}
+    for day in DAYS_LIST:
+        profile = []
+        for h in range(24):
+            if get_slot_info(day, h) is not None:
+                mask = (df['jour'] == day) & (df['heure'] == h)
+                slot_data = df.loc[mask, 'frequentation']
+                n = len(slot_data)
+                med = round(float(slot_data.median()), 1) if n > 0 else 0
+                profile.append({"h": h, "med": med, "n": n})
+        day_profiles[day] = profile
 
     for day in DAYS_LIST:
         d_code = DAY_MAP[day]
@@ -81,30 +89,40 @@ try:
             if info is None:
                 continue
             mins_since, mins_before = info
-            pred = model.predict(pd.DataFrame([[d_code, h, mins_since, mins_before, current_month]], columns=features))[0]
+            pred = model.predict(pd.DataFrame(
+                [[d_code, h, mins_since, mins_before, current_month]], columns=features
+            ))[0]
 
-            # Statistiques empiriques sur ce créneau (médiane + nb observations)
             mask = (df['jour'] == day) & (df['heure'] == h)
             slot_data = df.loc[mask, 'frequentation']
             n_obs = len(slot_data)
             empirical_median = slot_data.median() if n_obs > 0 else pred
 
-            # Score final : mélange médiane empirique et prédiction ML
-            # Si peu d'observations, on fait davantage confiance au modèle
-            weight_empirical = min(n_obs / 15, 1.0)  # confiance max à 15 obs
+            weight_empirical = min(n_obs / 15, 1.0)
             score = weight_empirical * empirical_median + (1 - weight_empirical) * pred
 
             predictions.append({
                 'day': day,
                 'hour': h,
                 'score': score,
-                'pred_rf': round(pred, 1),
-                'median': round(empirical_median, 1),
+                'median': round(float(empirical_median), 1),
                 'n_obs': n_obs,
             })
 
     predictions.sort(key=lambda x: x['score'])
     top_3 = predictions[:3]
+
+    # --- 4. DONNÉES POUR LE GRAPHE ---
+    chart_data = {}
+    for p in top_3:
+        key = f"{FR_DAYS[p['day']]} {p['hour']}h"
+        chart_data[key] = {
+            "median": p['median'],
+            "n_obs": p['n_obs'],
+            "selected_hour": p['hour'],
+            "profile": day_profiles[p['day']],
+        }
+    chart_data_json = json.dumps(chart_data, ensure_ascii=False)
 
     if top_3:
         for i, p in enumerate(top_3):
@@ -118,7 +136,7 @@ except Exception as e:
     print(f"Error: {e}")
     top_3_html = '<div class="wheel-item active">Erreur</div>'
 
-# --- 4. GÉNÉRATION HTML ---
+# --- 5. GÉNÉRATION HTML ---
 html_content = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -170,7 +188,6 @@ html_content = f"""<!DOCTYPE html>
             mask-image: linear-gradient(to bottom, transparent, black 40%, black 60%, transparent);
             -webkit-mask-image: linear-gradient(to bottom, transparent, black 40%, black 60%, transparent);
         }}
-
         .wheel-container::-webkit-scrollbar {{ display: none; }}
 
         .spacer {{ height: 60px; }}
@@ -185,7 +202,6 @@ html_content = f"""<!DOCTYPE html>
             transition: all 0.2s ease;
             cursor: pointer;
         }}
-
         .wheel-item.active {{
             color: #fff;
             font-size: 20px;
@@ -194,6 +210,57 @@ html_content = f"""<!DOCTYPE html>
             transform: scale(1.1);
         }}
 
+        /* --- GRAPHE --- */
+        .chart-panel {{
+            margin-top: 28px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            opacity: 0;
+            transform: translateY(6px);
+            transition: opacity 0.35s ease, transform 0.35s ease;
+        }}
+        .chart-panel.visible {{
+            opacity: 1;
+            transform: translateY(0);
+        }}
+        .chart-bars {{
+            display: flex;
+            align-items: flex-end;
+            gap: 5px;
+            height: 55px;
+        }}
+        .bar-wrap {{
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }}
+        .bar {{
+            width: 16px;
+            border-radius: 2px 2px 0 0;
+            transition: background 0.3s ease, height 0.4s ease;
+            min-height: 2px;
+        }}
+        .bar-hour {{
+            font-size: 8px;
+            color: #333;
+            transition: color 0.3s ease;
+        }}
+        .bar-hour.active-label {{ color: #888; }}
+        .chart-stat {{
+            font-size: 9px;
+            color: #3a3a3a;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }}
+        .chart-stat span {{
+            color: #666;
+        }}
+
+        /* --- STATUT --- */
         .status {{
             display: flex;
             align-items: center;
@@ -201,7 +268,7 @@ html_content = f"""<!DOCTYPE html>
             gap: 8px;
             font-size: 10px;
             color: #555;
-            margin-top: 30px;
+            margin-top: 24px;
         }}
         .dot {{
             width: 6px; height: 6px;
@@ -214,6 +281,7 @@ html_content = f"""<!DOCTYPE html>
             0% {{ opacity: 1; }} 50% {{ opacity: 0.4; }} 100% {{ opacity: 1; }}
         }}
 
+        /* --- MÉTHODOLOGIE --- */
         .details-trigger {{
             position: absolute;
             bottom: 20px;
@@ -225,7 +293,6 @@ html_content = f"""<!DOCTYPE html>
             transition: color 0.3s;
         }}
         .details-trigger:hover {{ color: #888; }}
-
         .arrow {{ font-size: 12px; margin-bottom: 5px; animation: bounce 2s infinite; }}
         .info-text {{ font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }}
 
@@ -267,6 +334,11 @@ html_content = f"""<!DOCTYPE html>
             <div class="spacer"></div>
         </div>
 
+        <div class="chart-panel" id="chartPanel">
+            <div class="chart-bars" id="chartBars"></div>
+            <div class="chart-stat" id="chartStat"></div>
+        </div>
+
         <div class="status">
             <div class="dot"></div>
             <span>mis à jour à {update_time}</span>
@@ -291,22 +363,63 @@ html_content = f"""<!DOCTYPE html>
     </div>
 
     <script>
-        const container = document.getElementById('wheel');
+        const CHART_DATA = {chart_data_json};
+
+        const wheelEl = document.getElementById('wheel');
         const items = document.querySelectorAll('.wheel-item');
+        const chartPanel = document.getElementById('chartPanel');
+        const chartBars = document.getElementById('chartBars');
+        const chartStat = document.getElementById('chartStat');
 
-        container.addEventListener('scroll', () => {{
-            const center = container.scrollTop + (container.clientHeight / 2);
+        let activeLabel = null;
 
+        function renderChart(label) {{
+            if (label === activeLabel) return;
+            activeLabel = label;
+
+            const data = CHART_DATA[label];
+            if (!data || !data.profile.length) {{
+                chartPanel.classList.remove('visible');
+                return;
+            }}
+
+            const maxVal = Math.max(...data.profile.map(p => p.med), 1);
+            const BAR_MAX_H = 50;
+
+            chartBars.innerHTML = data.profile.map(p => {{
+                const isSelected = p.h === data.selected_hour;
+                const barH = Math.max(2, Math.round((p.med / maxVal) * BAR_MAX_H));
+                const barColor = isSelected ? '#c8c8c8' : '#222';
+                const labelColor = isSelected ? 'active-label' : '';
+                return `<div class="bar-wrap">
+                    <div class="bar" style="height:${{barH}}px;background:${{barColor}}"></div>
+                    <div class="bar-hour ${{labelColor}}">${{p.h}}h</div>
+                </div>`;
+            }}).join('');
+
+            const medLabel = data.median === 0 ? 'quasi vide' : `~${{data.median}} nageurs`;
+            chartStat.innerHTML = `<span>${{medLabel}}</span> · ${{data.n_obs}} mesures`;
+
+            chartPanel.classList.add('visible');
+        }}
+
+        wheelEl.addEventListener('scroll', () => {{
+            const center = wheelEl.scrollTop + (wheelEl.clientHeight / 2);
             items.forEach(item => {{
                 const itemCenter = item.offsetTop + (item.clientHeight / 2);
                 const distance = Math.abs(center - itemCenter);
                 if (distance < 15) {{
                     item.classList.add('active');
+                    renderChart(item.textContent.trim());
                 }} else {{
                     item.classList.remove('active');
                 }}
             }});
         }});
+
+        // Initialisation au chargement
+        const firstActive = document.querySelector('.wheel-item.active');
+        if (firstActive) renderChart(firstActive.textContent.trim());
 
         function toggleDetails() {{
             const panel = document.getElementById('methPanel');
